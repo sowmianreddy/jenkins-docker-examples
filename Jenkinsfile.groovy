@@ -17,6 +17,21 @@ pipeline
             {
                  sh 'node --version'   
             }
-        }    
+        }
+        stage('Test-maven')    
+        {
+          agent
+	  {
+		docker
+		{
+			image 'maven' 
+		}
+          } 
+	  steps
+	  {
+	      sh  'mvn --version'
+          }	
+        }
+         
     }
 }
