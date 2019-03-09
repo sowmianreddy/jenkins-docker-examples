@@ -9,6 +9,12 @@ pipeline
     }
     stages
     {
-        steps
+        stage('Test')
+        {
+            steps
+            {
+                 sh 'node --version'   
+            }
+        }    
     }
 }
