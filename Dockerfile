@@ -2,10 +2,10 @@ FROM ubuntu
 
 RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
 
-ENV BASE_APKS="sudo openssl openssh-client zip ttf-dejavu maven ruby" \
-    BUILD_APKS=" make gcc clang g++ paxctl binutils-gold autoconf bison"
+ENV BASE_APKS="maven ruby" \
+  #  BUILD_APKS=" make gcc clang g++ paxctl binutils-gold autoconf bison"
 
-RUN apt-get install -y $BASE_APKS $BUILD_APKS \
+RUN apt-get install -y $BASE_APKS \
       && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_PREFIX=/usr/local \
