@@ -1,0 +1,38 @@
+pipeline
+{
+    agent any
+    stages
+    {
+        stage('Test')
+        {
+                agent
+                {
+                        docker
+                        {
+                                 image 'node:7-alpine'
+                         }
+                }
+
+            steps
+            {
+                 sh 'node --version'
+            }
+        }
+        stage('Test-maven')
+        {
+          agent
+          {
+                docker
+                {
+                        image 'maven'
+                }
+          }
+          steps
+          {
+              sh  'mvn --version'
+          }
+        }
+
+    }
+}
+

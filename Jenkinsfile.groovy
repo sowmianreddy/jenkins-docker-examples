@@ -1,36 +1,17 @@
 pipeline
 {
-    agent any
+    agent { dockerfile true; }
+ 
     stages
     {
         stage('Test')
         {
-	 	agent
-		{
-			docker
-        		{
-           			 image 'node:7-alpine'
-       			 }
-		}
 
             steps
             {
                  sh 'node --version'   
+                 sh 'svn --version'
             }
-        }
-        stage('Test-maven')    
-        {
-          agent
-	  {
-		docker
-		{
-			image 'maven' 
-		}
-          } 
-	  steps
-	  {
-	      sh  'mvn --version'
-          }	
         }
          
     }
