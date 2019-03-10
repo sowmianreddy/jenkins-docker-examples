@@ -1,32 +1,52 @@
-FROM openjdk:11-jdk-slim
+FROM alpine
 
-ARG MAVEN_VERSION=3.6.0
-ARG USER_HOME_DIR="/root"
-ARG SHA=fae9c12b570c3ba18116a4e26ea524b29f7279c17cbaadc3326ca72927368924d9131d11b9e851b8dc9162228b6fdea955446be41207a5cfc61283dd8a561d2f
-ARG BASE_URL=https://apache.osuosl.org/maven/maven-3/${MAVEN_VERSION}/binaries
+RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && \
-    apt-get install -y \
-      curl procps \
-  && rm -rf /var/lib/apt/lists/*
+ENV BASE_APKS="sudo openssl openssh-client zip ttf-dejavu maven ruby" \
+    BUILD_APKS=" make gcc clang g++ paxctl binutils-gold autoconf bison"
 
-# Maven fails with 'Can't read cryptographic policy directory: unlimited'
-# because it looks for $JAVA_HOME/conf/security/policy/unlimited but it is in
-# /etc/java-9-openjdk/security/policy/unlimited
-RUN ln -s /etc/java-11-openjdk /usr/lib/jvm/java-11-openjdk-$(dpkg --print-architecture)/conf
+RUN apt-get install -y $BASE_APKS $BUILD_APKS \
+      && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
-  && curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
-  && echo "${SHA}  /tmp/apache-maven.tar.gz" | sha512sum -c - \
-  && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
-  && rm -f /tmp/apache-maven.tar.gz \
-  && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
+ENV NODE_PREFIX=/usr/local \
+    NODE_VERSION=6.4.0 \
+    NPM_VERSION=latest \
+    NODE_SOURCE=/usr/src/node
 
-ENV MAVEN_HOME /usr/share/maven
-ENV MAVEN_CONFIG "$USER_HOME_DIR/.m2"
+RUN [ "${NODE_VERSION}" == "latest" ] && { \
+        DOWNLOAD_PATH=https://nodejs.org/dist/node-latest.tar.gz; \
+    } || { \
+        DOWNLOAD_PATH=https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}.tar.gz; \
+    }; \
+    mkdir -p $NODE_SOURCE && \
+    wget -O - $DOWNLOAD_PATH -nv | tar -xz --strip-components=1 -C $NODE_SOURCE && \
+    cd $NODE_SOURCE && \
+    export GYP_DEFINES="linux_use_gold_flags=0" && \
+    ./configure --prefix=$NODE_PREFIX $NODE_CONFIG_FLAGS && \
+    make -j$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
+    make install;
 
-COPY mvn-entrypoint.sh /usr/local/bin/mvn-entrypoint.sh
-COPY settings-docker.xml /usr/share/maven/ref/
+RUN paxctl -cm ${NODE_PREFIX}/bin/node && \
+    cd / && \
+    if [ -x /usr/bin/npm ]; then \
+      npm install -g npm@${NPM_VERSION} && \
+      find /usr/lib/node_modules/npm -name test -o -name .bin -type d | xargs rm -rf; \
+    fi && \
+    rm -rf \
+        ${NODE_SOURCE} \
+        ${NODE_PREFIX}/include \
+        ${NODE_PREFIX}/share/man \
+        /tmp/* \
+        /var/cache/apk/* \
+        /root/.npm \
+        /root/.node-gyp \
+        /root/.gnupg \
+        ${NODE_PREFIX}/lib/node_modules/npm/man \
+        ${NODE_PREFIX}/lib/node_modules/npm/doc \
+        ${NODE_PREFIX}/lib/node_modules/npm/html \
+    && \
+    mkdir -p /app && \
+    exit 0 || exit 1;
 
-ENTRYPOINT ["/usr/local/bin/mvn-entrypoint.sh"]
-CMD ["mvn"]
+RUN npm install -g yarn \
+  && yarn global add gulp grunt node-sass bower
